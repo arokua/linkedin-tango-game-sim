@@ -1,7 +1,11 @@
 # Simple simulation of Linkedin Tango game
 A simple simulation of the linkedin tango game using Python with tkinter
 To run with python installed, you just need to install tkinter as extra library if not already have it.
-```pip install tkinter ```
+Also install Shiny if you want the web version, then run main.py, the class file should be in the same directory as the main.py
+```
+    pip install tkinter 
+    pip install shiny
+```
 
 Data structure used:
 2D adjacency matrix to represent the board cells and another 2D matrix to represent the relationships.
