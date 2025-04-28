@@ -35,8 +35,8 @@ class TangoBoard:
             raise ValueError("Board side length must be even")
         self.n = n
         self.size = n * n
-        self.solution = self.generate_solution()
         self.valid_num = adjacency_limit  # Configurable adjacency limit
+        self.solution = self.generate_solution()        
         self.board = [[-1 for _ in range(n)] for _ in range(n)]
         self.relations = self.create_relations_from_solution(relations)
         self.board, self.row_counts, self.col_counts, self.known_cells = \
