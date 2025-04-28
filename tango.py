@@ -28,45 +28,46 @@ def has_positive_integer_sqrt_binary_search(num):
 
 class TangoBoard:
     def __init__(self, n=6, known_cells=21, relations=8, adjacency_limit=2):
+        # Refactorized code, generate a filled board first then empty it.
         if not has_positive_integer_sqrt_binary_search(n * n):
             raise ValueError("Board size must be a perfect square.")
         if n % 2 != 0:
             raise ValueError("Board side length must be even")
         self.n = n
         self.size = n * n
+        self.solution = self.generate_solution()
         self.valid_num = adjacency_limit  # Configurable adjacency limit
         self.board = [[-1 for _ in range(n)] for _ in range(n)]
-        self.relations = {}  # ((r1, c1), (r2, c2)): '=' or '×'
-        self.row_counts = [[0, 0] for _ in range(n)]  # [M, S]
-        self.col_counts = [[0, 0] for _ in range(n)]
-        self.known_cells = []
-        self.length = n
-        self.known_cells_count = known_cells
-        self.relations_count = relations
-        self.generate_full_board()
-        self.initialize_puzzle(known_cells, relations)
+        self.relations = self.create_relations_from_solution(relations)
+        self.board, self.row_counts, self.col_counts, self.known_cells = \
+            self.make_puzzle_board(known_cells)
+    
+    def generate_solution(self):
+        # Return a completely filled, valid n × n board.
+        board = [[-1]*self.n for _ in range(self.n)]
+        row_ct  = [[0,0] for _ in range(self.n)]
+        col_ct  = [[0,0] for _ in range(self.n)]
 
-    def generate_full_board(self):
-        def backtrack(pos):
+        def backtrack(pos: int) -> bool:
             if pos == self.size:
-                return all(self.row_counts[r][0] == self.n//2 and self.row_counts[r][1] == self.n//2 for r in range(self.n)) and \
-                       all(self.col_counts[c][0] == self.n//2 and self.col_counts[c][1] == self.n//2 for c in range(self.n))
-            row, col = divmod(pos, self.n)
-            for value in [0, 1]:
-                if self.row_counts[row][value] < self.n//2 and self.col_counts[col][value] < self.n//2:
-                    if self.is_valid_position(row, col, value):
-                        self.board[row][col] = value
-                        self.row_counts[row][value] += 1
-                        self.col_counts[col][value] += 1
-                        if backtrack(pos + 1):
-                            return True
-                        self.board[row][col] = -1
-                        self.row_counts[row][value] -= 1
-                        self.col_counts[col][value] -= 1
+                return True
+            r, c = divmod(pos, self.n)
+            for val in (0,1):
+                if row_ct[r][val] < self.n//2 and col_ct[c][val] < self.n//2 \
+                   and self.is_valid_position_local(board, r, c, val):
+                    board[r][c] = val
+                    row_ct[r][val] += 1
+                    col_ct[c][val] += 1
+                    if backtrack(pos+1):
+                        return True
+                    board[r][c] = -1
+                    row_ct[r][val] -= 1
+                    col_ct[c][val] -= 1
             return False
 
         backtrack(0)
-
+        return board
+        
     def is_valid_position(self, row, col, value):
         # Horizontal checks
         if col >= 2 and self.board[row][col-1] == value and self.board[row][col-2] == value:
@@ -110,6 +111,55 @@ class TangoBoard:
         count = 1
         for r in range(row+1, self.n):
             if self.board[r][col] == value:
+                count += 1
+            else:
+                break
+            if count > self.valid_num:
+                return False
+        return True
+    def is_valid_position_local(self,b, row, col, value):
+        # Horizontal checks
+        if col >= 2 and b[row][col-1] == value and b[row][col-2] == value:
+            return False
+        if col <= self.n-3 and b[row][col+1] == value and b[row][col+2] == value:
+            return False
+        if col >= 1 and col <= self.n-2 and b[row][col-1] == value and b[row][col+1] == value:
+            return False
+        # Vertical checks
+        if row >= 2 and b[row-1][col] == value and b[row-2][col] == value:
+            return False
+        if row <= self.n-3 and b[row+1][col] == value and b[row+2][col] == value:
+            return False
+        if row >= 1 and row <= self.n-2 and b[row-1][col] == value and b[row+1][col] == value:
+            return False
+        # General adjacency check for valid_num
+        count = 1
+        for c in range(col-1, -1, -1):
+            if b[row][c] == value:
+                count += 1
+            else:
+                break
+            if count > self.valid_num:
+                return False
+        count = 1
+        for c in range(col+1, self.n):
+            if b[row][c] == value:
+                count += 1
+            else:
+                break
+            if count > self.valid_num:
+                return False
+        count = 1
+        for r in range(row-1, -1, -1):
+            if b[r][col] == value:
+                count += 1
+            else:
+                break
+            if count > self.valid_num:
+                return False
+        count = 1
+        for r in range(row+1, self.n):
+            if b[r][col] == value:
                 count += 1
             else:
                 break
@@ -241,6 +291,25 @@ class TangoBoard:
         if new_value != -1:
             self.row_counts[row][new_value] += 1
             self.col_counts[col][new_value] += 1
+
+    def make_puzzle_board(self, known_cells):
+        """Return (board,row_counts,col_counts,known_cells) ready for play."""
+        board = [[-1]*self.n for _ in range(self.n)]
+        row_ct = [[0,0] for _ in range(self.n)]
+        col_ct = [[0,0] for _ in range(self.n)]
+
+        all_pos = [(r,c) for r in range(self.n) for c in range(self.n)]
+        selected = random.sample(all_pos, min(known_cells, len(all_pos)))
+
+        known = []
+        for r,c in selected:
+            val = self.solution[r][c]
+            board[r][c] = val
+            row_ct[r][val] += 1
+            col_ct[c][val] += 1
+            known.append((r,c,val))
+
+        return board, row_ct, col_ct, known
 
     def is_valid_board(self):
         for i in range(self.n):
